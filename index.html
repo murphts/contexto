@@ -1,0 +1,27 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8"/>
+    <!-- https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP -->
+    <!--    <meta-->
+    <!--            http-equiv="Content-Security-Policy"-->
+    <!--            content="default-src 'self'; script-src 'self'"-->
+    <!--    />-->
+    <!--    <meta-->
+    <!--            http-equiv="X-Content-Security-Policy"-->
+    <!--            content="default-src 'self'; script-src 'self'"-->
+    <!--    />-->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="./style.css">
+    <title>Contexto</title>
+</head>
+<body>
+<div class="popup-container">
+    <button class="popup-action" onclick="window.electronAPI.kill()">
+        Quit
+    </button>
+</div>
+</body>
+<script src="./renderer.js"></script>
+</html>
