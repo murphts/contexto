@@ -1,7 +1,0 @@
-﻿{
-  "watch": ["*.js", "*.html", "*.css", "*.ts"],
-  "ext": "js,ts,html,css,json",
-  "ignore": ["node_modules"],
-  "exec": "electron .",
-  "signal": "SIGTERM"
-}

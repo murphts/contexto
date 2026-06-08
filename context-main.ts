@@ -1,11 +1,12 @@
-﻿const { BrowserWindow, screen, ipcMain } = require('electron');
-const path = require("path");
+﻿import {BrowserWindow, screen, ipcMain} from "electron";
+import path from "path";
+import * as crypto from "node:crypto";
 
 let WIN_WIDTH = 235;
 let WIN_HEIGHT = 205;
 
-function sendMessage(win, eventName, value) {
-    win.webContents.send('asynchronous-reply', { event: eventName, value: value });
+function sendMessage(win: BrowserWindow, eventName: string, value: any) {
+    win.webContents.send('asynchronous-reply', {event: eventName, value: value});
 }
 
 function waitUntil(condition, interval = 100) {
@@ -21,26 +22,20 @@ function waitUntil(condition, interval = 100) {
 
 
 class ContextMenu {
-    constructor() {
-        /** @type {ContextWindow[]} */
-        this.windows = [];
-        /** @type {ContextItem[]} */
-        this.content = [];
-        /** @type {{ depth: number, id: string }[]} */
-        this._latestOverId = [];
-        /** @type {boolean} */
-        this._initiated = false;
+    windows: ContextWindow[] = [];
+    content: ContextItem[] = [];
+    _latestOverId: {
+        depth: number;
+        id: string;
+    }[] = [];
+    _initiated: boolean = false;
 
+    constructor() {
+        // this.initWindow();
         this.initIPC();
     }
 
-    /**
-     * @param {ContextItem} target
-     * @param {number} currentDepth
-     * @param {ContextItem[]} content
-     * @returns {number}
-     */
-    findDepth(target, currentDepth = 0, content = this.content) {
+    findDepth(target: ContextItem, currentDepth: number = 0, content: ContextItem[] = this.content): number {
         for (const item of content) {
             if (item === target) return currentDepth;
 
@@ -52,9 +47,8 @@ class ContextMenu {
 
         return -1;
     }
-
-    /** @returns {number} */
-    calcDepth() {
+    
+    calcDepth(): number {
         let maxDepth = 0;
 
         for (const item of this.content) {
@@ -65,12 +59,7 @@ class ContextMenu {
         return maxDepth;
     }
 
-    /**
-     * @param {ContextItem} item
-     * @param {number} currentDepth
-     * @returns {number}
-     */
-    iterate(item, currentDepth) {
+    iterate(item: ContextItem, currentDepth: number): number {
         if (!item.options || item.options.length === 0) {
             return currentDepth;
         }
@@ -85,19 +74,14 @@ class ContextMenu {
         return maxChildDepth;
     }
 
-    /**
-     * @param {ContextItem[]} content
-     * @returns {ContextItem[]}
-     */
-    flatMap(content = this.content) {
+    flatMap(content: ContextItem[] = this.content): ContextItem[] {
         return content.flatMap(item => [
             item,
             ...this.flatMap(item.options ?? [])
         ]);
     }
 
-    /** @param {string} id */
-    findItem(id) {
+    findItem(id: string) {
         return this.flatMap().find(item => item.id === id);
     }
 
@@ -105,9 +89,8 @@ class ContextMenu {
         this.windows.forEach(window => window.hide());
     }
 
-    /** @returns {ContextWindow} */
-    initWindow(animate) {
-        return new ContextWindow(this, animate);
+    initWindow() {
+        return new ContextWindow(this);
     }
 
     initIPC() {
@@ -115,16 +98,18 @@ class ContextMenu {
             const item = this.findItem(id);
             const depth = this.findDepth(item);
 
-            if (item && (item.options == null || item.options.length === 0)) {
+            if (item) {
                 this.blurAll();
+                // this.windows[depth].blur();
                 item?.func?.();
             }
         });
 
         ipcMain.on('ctx-over', (e, data) => {
+            const hasOption = data.hasOption;
             const item = this.findItem(data.id);
             const depth = this.findDepth(item) + 1;
-
+            
             if (item.options != null && item.options.length > 0) {
                 const rootWindow = this.windows[depth - 1];
                 const contextWindow = this.windows[depth];
@@ -139,13 +124,13 @@ class ContextMenu {
 
                 this.windows.forEach((window, i) => {
                     if (i > depth) {
-                        window.hide();
+                        window.hide()
                     }
                 });
             } else {
                 this.windows.forEach((window, i) => {
                     if (i >= depth) {
-                        window.hide();
+                        window.hide()
                     }
                 });
             }
@@ -153,25 +138,26 @@ class ContextMenu {
             this._latestOverId.forEach((x, i) => {
                 if (i >= depth)
                     x.id = "";
-            });
+            })
 
             const overId = this._latestOverId.find(x => x.depth == depth);
-
+            
             if (overId != null)
                 overId.id = data.id;
-            else this._latestOverId.push({ depth: depth, id: data.id });
+            else this._latestOverId.push({depth: depth, id: data.id})
         });
 
         ipcMain.on('ctx-leave', (e, id) => {
             // xtraCtx.blur()
+            // console.log("leave", id)
         });
 
         ipcMain.on('resolve-ctx', (e, data) => {
             WIN_WIDTH = Math.round(data.rect.width);
             WIN_HEIGHT = Math.round(data.rect.height);
 
-            let { x, y } = screen.getCursorScreenPoint();
-            const { bounds } = screen.getPrimaryDisplay();
+            let {x, y} = screen.getCursorScreenPoint();
+            const {bounds} = screen.getPrimaryDisplay();
 
             if (data.offset != null) {
                 x = data.offset.x + data.offset.width;
@@ -179,6 +165,18 @@ class ContextMenu {
             }
 
             const outOfBounds = x + WIN_WIDTH - data.rect.extraRight > bounds.width || x - data.rect.extraLeft < 0;
+            
+            
+            // if (data.offset != null) {
+            //     if (outOfBounds) {
+            //         x = data.offset.x - data.offset.width;
+            //         y = data.offset.y + data.offset.height;
+            //     }
+            //     else {
+            //         x = data.offset.x + data.offset.width;
+            //         y = data.offset.y + data.offset.height;
+            //     }
+            // }
 
             if (data.offset != null) {
                 if (outOfBounds) {
@@ -189,14 +187,14 @@ class ContextMenu {
 
             let posX = x + WIN_WIDTH - data.rect.extraRight > bounds.width ? x - WIN_WIDTH + data.rect.extraRight :
                 (x - data.rect.extraLeft < 0 ? -data.rect.extraLeft : x - data.rect.extraLeft);
-            let posY = y - WIN_HEIGHT - data.rect.extraBottom < 0 ? y - data.rect.extraTop :
+            let posY = y - WIN_HEIGHT - data.rect.extraBottom < 0 ? y - data.rect.extraTop : 
                 (y > bounds.height ? bounds.height - WIN_HEIGHT - data.rect.extraBottom : y - WIN_HEIGHT + data.rect.extraBottom);
 
             let contextWindow = this.windows[data.id];
             let window = contextWindow.window;
 
             contextWindow.setActive(true);
-            
+
             window.setOpacity(0);
             window.setBounds({
                 x: posX,
@@ -207,28 +205,27 @@ class ContextMenu {
 
             window.show();
             window.focus();
+            
+            const pureHeight = WIN_HEIGHT - data.rect.extraTop - data.rect.extraBottom;
+            
+            // posY -= (outOfBounds ? (pureHeight ?? 0) : 0);
+            // posY -= (outOfBounds ? (data.offset?.height ?? 0) : 0);
 
             sendMessage(window, "init-ctx-menu", {
-                offsetRect: { x: posX, y: posY, width: WIN_WIDTH, height: WIN_HEIGHT }
+                offsetRect: {x: posX, y: posY, width: WIN_WIDTH, height: WIN_HEIGHT}
             });
-            
-            if (contextWindow.animate) {
-                let opacity = 0;
-                clearInterval(contextWindow.currentInterval);
-                contextWindow.currentInterval = setInterval(() => {
-                    opacity += 0.1;
-                    window.setOpacity(opacity);
-                    if (opacity >= 1) clearInterval(contextWindow.currentInterval);
-                }, 10);
-            }
-            else {
-                window.setOpacity(1);
-            }
-        });
+
+            let opacity = 0;
+            clearInterval(contextWindow.currentInterval);
+            contextWindow.currentInterval = setInterval(() => {
+                opacity += 0.1;
+                window.setOpacity(opacity);
+                if (opacity >= 1) clearInterval(contextWindow.currentInterval);
+            }, 10);
+        })
     }
 
-    /** @param {ContextItem} item */
-    addItem(item) {
+    addItem(item: ContextItem) {
         this.content.push(item);
     }
 
@@ -236,12 +233,12 @@ class ContextMenu {
         this.content = [];
     }
 
-    async showAsContext(animate = true) {
+    async showAsContext() {
         if (!this._initiated) {
             const depth = this.calcDepth() + 1;
             const initialWindows = [];
             for (let i = 0; i < depth; i++) {
-                initialWindows.push(this.initWindow(animate));
+                initialWindows.push(this.initWindow());
             }
 
             this._initiated = true;
@@ -278,11 +275,15 @@ class ContextMenu {
 }
 
 class ContextWindow {
-    /** @param {ContextMenu} menu */
-    constructor(menu, animate) {
-        /** @type {ContextMenu} */
+    menu: ContextMenu;
+    window: BrowserWindow;
+    currentInterval = null;
+    ready: boolean = false;
+    suppressBlur: boolean = false;
+    active: boolean = false;
+
+    constructor(menu: ContextMenu) {
         this.menu = menu;
-        /** @type {BrowserWindow} */
         this.window = new BrowserWindow({
             width: WIN_WIDTH,
             height: WIN_HEIGHT,
@@ -301,25 +302,20 @@ class ContextWindow {
             }
         });
 
-        /** @type {ReturnType<typeof setInterval> | null} */
-        this.currentInterval = null;
-        /** @type {boolean} */
-        this.ready = false;
-        /** @type {boolean} */
-        this.suppressBlur = false;
-        /** @type {boolean} */
-        this.active = false;
-        /** @type {boolean} */
-        this.animate = animate;
-
         this.window.loadFile('index.html');
         this.initiate();
     }
 
+    // blur() {
+    //     this.suppressBlur = true;
+    //     this.window.blur();
+    //     this.setActive(false);
+    // }
+
     initiate() {
         const window = this.window;
         window.once('ready-to-show', () => {
-            const { bounds } = screen.getPrimaryDisplay();
+            const {bounds} = screen.getPrimaryDisplay();
 
             window.setOpacity(0);
             window.showInactive();
@@ -329,11 +325,16 @@ class ContextWindow {
             const contextID = this.menu.windows.length;
             sendMessage(window, "ctx-id", contextID);
 
+            // window?.webContents.on("console-message", (event) => {
+            //     console.log(
+            //         `[Renderer:${contextID}:${event.level}] ${event.message} (${event.sourceId}:${event.lineNumber})`
+            //     );
+            // });
+
             this.ready = true;
 
-            this.menu.windows.push(this);
+            this.menu.windows.push(this)
         });
-
         window.on('blur', () => {
             if (!this.suppressBlur) {
                 for (let w of this.menu.windows) {
@@ -341,6 +342,16 @@ class ContextWindow {
                         return;
                     }
                 }
+            } else {
+                // if (this.menu.windows.filter(x => x != this).every(x => !x.window.isFocused()))
+                // {
+                //     this.menu.windows.forEach((w) => {
+                //         if (w != this)
+                //             w.blur();
+                //     });
+                //    
+                //     return;
+                // }
             }
 
             this.suppressBlur = false;
@@ -350,46 +361,37 @@ class ContextWindow {
 
     hide() {
         const window = this.window;
-        const { bounds } = screen.getPrimaryDisplay();
-        
-        if (this.animate)
-        {
-            let opacity = 1;
+        const {bounds} = screen.getPrimaryDisplay();
+        let opacity = 1;
 
-            clearInterval(this.currentInterval);
-            this.currentInterval = setInterval(() => {
-                opacity -= 0.1;
-                window.setOpacity(opacity);
-                if (opacity <= 0) {
-                    clearInterval(this.currentInterval);
-                    window.setOpacity(0);
-                    window.setPosition(bounds.width + 1, 0);
-                }
-            }, 10);
-        }
-        else {
-            window.setOpacity(0);
-            window.setPosition(bounds.width + 1, 0);
-        }
+        clearInterval(this.currentInterval);
+        this.currentInterval = setInterval(() => {
+            opacity -= 0.1;
+            window.setOpacity(opacity);
+            if (opacity <= 0) {
+                clearInterval(this.currentInterval);
+                window.setOpacity(0);
+                window.setPosition(bounds.width + 1, 0);
+            }
+        }, 10);
     }
 
-    /** @param {boolean} b */
-    setActive(b) {
+    setActive(b: boolean) {
         this.active = b;
     }
 }
 
 class ContextItem {
-    constructor(title, options, func) {
-        /** @type {string} */
-        this.id = crypto.randomUUID();
-        /** @type {string} */
+    id = crypto.randomUUID();
+    title: string;
+    func: () => void;
+    options: ContextItem[];
+
+    constructor(title: string, options?: ContextItem[], func?: () => void) {
         this.title = title;
-        /** @type {ContextItem[] | undefined} */
         this.options = options;
-        /** @type {(() => void) | undefined} */
         this.func = func;
     }
 }
 
-module.exports = { ContextMenu, ContextItem, ContextWindow };
+module.exports = {ContextMenu, ContextItem, ContextWindow};
