@@ -1,15 +1,12 @@
 {
   "name": "@murphts/contexto",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "An electron js extension to create custom context menus with custom UI.",
   "license": "ISC",
   "author": "Murphy",
   "type": "commonjs",
   "main": "index.js",
-  "scripts": {
-    "dev": "nodemon",
-    "start": "electron ."
-  },
+  "types": "index.d.ts",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/murphts/contexto.git"
@@ -18,10 +15,24 @@
     "context",
     "menu"
   ],
+  "files": [
+    "fonts/",
+    "index.js", 
+    "index.d.ts",
+    "preload.js",
+    "renderer.js",
+    "index.html",
+    "style.css",
+    "package.json",
+    "README.md"
+  ],
   "devDependencies": {
-    "cross-env": "^10.1.0",
-    "electron": "^42.2.0",
-    "nodemon": "^3.1.14"
+    "electron": "^42.0.0",
+    "@types/node": "^24.0.0",
+    "typescript": "^4.5.5"
+  },
+  "engines": {
+    "node": ">=22.0.0"
   },
   "bugs": {
     "url": "https://github.com/murphts/contexto/issues"
