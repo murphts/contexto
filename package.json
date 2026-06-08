@@ -1,6 +1,6 @@
 {
   "name": "@murphts/contexto",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "An electron js extension to create custom context menus with custom UI.",
   "license": "ISC",
   "author": "Murphy",
@@ -17,7 +17,7 @@
   ],
   "files": [
     "fonts/",
-    "index.js", 
+    "index.js",
     "index.d.ts",
     "preload.js",
     "renderer.js",
