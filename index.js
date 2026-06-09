@@ -1,11 +1,27 @@
-﻿const { BrowserWindow, screen, ipcMain } = require('electron');
-const path = require("path");
+﻿import {BrowserWindow, screen, ipcMain} from 'electron';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+let pkgDir;
+if (typeof require !== 'undefined' && require.resolve) {
+    const packageName = '@murphts/contexto/package.json';
+    pkgDir = path.dirname(require.resolve(packageName));
+} else {
+    try {
+        const packageName = '@murphts/contexto/package.json';
+        const resolvedPath = fileURLToPath(import.meta.resolve(packageName));
+        pkgDir = path.dirname(resolvedPath);
+    } catch {
+        const __dirname = path.dirname(fileURLToPath(import.meta.url));
+        pkgDir = path.resolve(__dirname, '..');
+    }
+}
 
 let WIN_WIDTH = 235;
 let WIN_HEIGHT = 205;
 
 function sendMessage(win, eventName, value) {
-    win.webContents.send('asynchronous-reply', { event: eventName, value: value });
+    win.webContents.send('asynchronous-reply', {event: eventName, value: value});
 }
 function waitUntil(condition, interval = 100) {
     return new Promise((resolve) => {
@@ -18,7 +34,7 @@ function waitUntil(condition, interval = 100) {
     });
 }
 
-class ContextMenu {
+export class ContextMenu {
     constructor() {
         /** @type {ContextWindow[]} */
         this.windows = [];
@@ -157,7 +173,7 @@ class ContextMenu {
 
             if (overId != null)
                 overId.id = data.id;
-            else this._latestOverId.push({ depth: depth, id: data.id });
+            else this._latestOverId.push({depth: depth, id: data.id});
         });
 
         ipcMain.on('ctx-leave', (e, id) => {
@@ -168,8 +184,8 @@ class ContextMenu {
             WIN_WIDTH = Math.round(data.rect.width);
             WIN_HEIGHT = Math.round(data.rect.height);
 
-            let { x, y } = screen.getCursorScreenPoint();
-            const { bounds } = screen.getPrimaryDisplay();
+            let {x, y} = screen.getCursorScreenPoint();
+            const {bounds} = screen.getPrimaryDisplay();
 
             if (data.offset != null) {
                 x = data.offset.x + data.offset.width;
@@ -207,19 +223,23 @@ class ContextMenu {
             window.focus();
 
             sendMessage(window, "init-ctx-menu", {
-                offsetRect: { x: posX, y: posY, width: WIN_WIDTH, height: WIN_HEIGHT }
+                offsetRect: {x: posX, y: posY, width: WIN_WIDTH, height: WIN_HEIGHT}
             });
 
             if (contextWindow.animate) {
                 let opacity = 0;
                 clearInterval(contextWindow.currentInterval);
                 contextWindow.currentInterval = setInterval(() => {
+                    if (window == null || window.isDestroyed()) {
+                        clearInterval(this.currentInterval);
+                        return;
+                    }
+
                     opacity += 0.1;
                     window.setOpacity(opacity);
                     if (opacity >= 1) clearInterval(contextWindow.currentInterval);
                 }, 10);
-            }
-            else {
+            } else {
                 window.setOpacity(1);
             }
         });
@@ -275,9 +295,10 @@ class ContextMenu {
     }
 }
 
-class ContextWindow {
+export class ContextWindow {
     /** @param {ContextMenu} menu */
     constructor(menu, animate) {
+        console.log(pkgDir)
         /** @type {ContextMenu} */
         this.menu = menu;
         /** @type {BrowserWindow} */
@@ -295,7 +316,7 @@ class ContextWindow {
             webPreferences: {
                 contextIsolation: true,
                 nodeIntegration: false,
-                preload: path.join(__dirname, 'preload.js'),
+                preload: path.join(pkgDir, 'preload.js'),
             }
         });
 
@@ -311,14 +332,14 @@ class ContextWindow {
         this.animate = animate;
 
         // this.window.loadFile('index.html');
-        this.window.loadFile(path.join(__dirname, `index.html`));
+        this.window.loadFile(path.join(pkgDir, `index.html`));
         this.initiate();
     }
 
     initiate() {
         const window = this.window;
         window.once('ready-to-show', () => {
-            const { bounds } = screen.getPrimaryDisplay();
+            const {bounds} = screen.getPrimaryDisplay();
 
             window.setOpacity(0);
             window.showInactive();
@@ -349,14 +370,18 @@ class ContextWindow {
 
     hide() {
         const window = this.window;
-        const { bounds } = screen.getPrimaryDisplay();
+        const {bounds} = screen.getPrimaryDisplay();
 
-        if (this.animate)
-        {
+        if (this.animate) {
             let opacity = 1;
 
             clearInterval(this.currentInterval);
             this.currentInterval = setInterval(() => {
+                if (window == null || window.isDestroyed()) {
+                    clearInterval(this.currentInterval);
+                    return;
+                }
+
                 opacity -= 0.1;
                 window.setOpacity(opacity);
                 if (opacity <= 0) {
@@ -365,8 +390,7 @@ class ContextWindow {
                     window.setPosition(bounds.width + 1, 0);
                 }
             }, 10);
-        }
-        else {
+        } else {
             window.setOpacity(0);
             window.setPosition(bounds.width + 1, 0);
         }
@@ -378,7 +402,7 @@ class ContextWindow {
     }
 }
 
-class ContextItem {
+export class ContextItem {
     constructor(title, options, func) {
         /** @type {string} */
         this.id = crypto.randomUUID();
@@ -390,5 +414,3 @@ class ContextItem {
         this.func = func;
     }
 }
-
-module.exports = { ContextMenu, ContextItem, ContextWindow };

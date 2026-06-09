@@ -5,7 +5,6 @@ let offsetRect = null;
 const options = []
 
 window.electronAPI.onMessage((e, data) => {
-    // console.log(e, JSON.stringify(data), id)
     if (e === "ctx-menu") {
         container.replaceChildren();
 
@@ -82,30 +81,25 @@ function parseBoxShadowExtents(shadowStr) {
         return {extraTop, extraRight, extraBottom, extraLeft};
     }
 
-    // Split multiple shadows by comma, but not commas inside color functions
     const shadows = shadowStr.split(/,(?![^(]*\))/);
 
     for (const s of shadows) {
         const trimmed = s.trim();
         if (trimmed.includes('inset')) continue;
 
-        // Strip color values first to avoid parsing their numbers as offsets
-        // Handles: rgb(), rgba(), hsl(), hsla(), hwb(), oklch(), color(), #hex, named colors
         const stripped = trimmed
             .replace(/\b(?:rgb|rgba|hsl|hsla|hwb|oklch|oklab|lch|lab|color|color-mix)\s*\([^)]*\)/gi, '')
             .replace(/#[0-9a-fA-F]{3,8}\b/g, '')
             .replace(/\b(?:transparent|currentcolor|inherit|initial|unset|black|white|red|blue|green|yellow|purple|orange|pink|gray|grey)\b/gi, '')
             .trim();
 
-        // Now extract the numeric values: offsetX offsetY blur? spread?
         const nums = stripped.match(/-?\d+\.?\d*(?:px|rem|em|%)?/g);
         if (!nums) continue;
 
-        // Convert all to px-equivalent floats (rem/em approximation)
         const toFloat = (v) => {
             if (!v) return 0;
             if (v.endsWith('rem')) return parseFloat(v) * 16;
-            if (v.endsWith('em')) return parseFloat(v) * 16; // approximation
+            if (v.endsWith('em')) return parseFloat(v) * 16;
             return parseFloat(v);
         };
 
@@ -120,7 +114,6 @@ function parseBoxShadowExtents(shadowStr) {
         extraTop = Math.max(extraTop, -offsetY + blur + spread);
     }
 
-    // Clamp — a shadow fully behind the element adds nothing
     return {
         extraTop: Math.max(0, extraTop),
         extraRight: Math.max(0, extraRight),
