@@ -1,8 +1,8 @@
 {
   "name": "@murphts/contexto",
   "version": "1.0.2",
-  "description": "An electron js extension to create custom context menus with custom UI.",
-  "license": "ISC",
+  "description": "Styleable context menus for Electron, powered by HTML and CSS.",
+  "license": "MIT",
   "author": "Murphy",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -33,11 +33,14 @@
     "renderer.js",
     "index.html",
     "style.css",
+    "LICENSE",
     "README.md"
   ],
+  "peerDependencies": {
+    "electron": ">=20.0.0"
+  },
   "devDependencies": {
     "@types/node": "^24.0.0",
-    "electron": "^42.0.0",
     "tsup": "^8.5.1",
     "typescript": "^4.5.5"
   },
