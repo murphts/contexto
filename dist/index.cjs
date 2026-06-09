@@ -290,7 +290,6 @@ var ContextMenu = class {
 var ContextWindow = class {
   /** @param {ContextMenu} menu */
   constructor(menu, animate) {
-    console.log(pkgDir);
     this.menu = menu;
     this.window = new import_electron.BrowserWindow({
       width: WIN_WIDTH,
