@@ -1,6 +1,6 @@
 {
   "name": "@murphts/contexto",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Styleable context menus for Electron, powered by HTML and CSS.",
   "license": "MIT",
   "author": "Murphy",
