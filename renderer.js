@@ -1,11 +1,13 @@
-﻿const container = document.querySelector('.popup-container');
+﻿window.electronAPI.sendMessage('@murphts/on-context-menu-ready', null);
+
+const container = document.querySelector('.popup-container');
 
 let id = 0;
 let offsetRect = null;
 const options = []
 
 window.electronAPI.onMessage((e, data) => {
-    if (e === "ctx-menu") {
+    if (e === "@murphts/on-show-context-menu") {
         container.replaceChildren();
 
         for (let i = 0; i < data.options.length; i++) {
@@ -30,20 +32,20 @@ window.electronAPI.onMessage((e, data) => {
                 </svg>
             ` : actionOption.title;
             actionElement.onclick = (e) => {
-                window.electronAPI.sendMessage("ctx-menu", actionOption.id);
+                window.electronAPI.sendMessage("@murphts/on-context-menu-item-click", actionOption.id);
             }
 
             container.appendChild(actionElement);
         }
 
         const rect = getFullBounds(container);
-        window.electronAPI.sendMessage("resolve-ctx", {
+        window.electronAPI.sendMessage("@murphts/on-resolve-context-menu", {
             rect: rect,
             id: id,
             offset: data.rect
         });
     }
-    if (e === "init-ctx-menu") {
+    if (e === "@murphts/on-load-context-menu") {
         offsetRect = data.offsetRect;
         options.forEach((item) => {
             item.element.onpointerover = (e) => {
@@ -57,7 +59,7 @@ window.electronAPI.onMessage((e, data) => {
                     targetRect.height = bound.height;
                 }
 
-                window.electronAPI.sendMessage("ctx-over", {
+                window.electronAPI.sendMessage("@murphts/on-context-menu-item-over", {
                     id: item.option.id,
                     rect: targetRect,
                     hasOption: item.hasOption
@@ -65,11 +67,11 @@ window.electronAPI.onMessage((e, data) => {
             };
 
             item.element.onpointerleave = (e) => {
-                window.electronAPI.sendMessage("ctx-leave", item.option.id);
+                window.electronAPI.sendMessage("@murphts/on-context-menu-item-leave", item.option.id);
             };
         })
     }
-    if (e === "ctx-id") {
+    if (e === "@murphts/on-resolve-context-id") {
         id = data;
     }
 })

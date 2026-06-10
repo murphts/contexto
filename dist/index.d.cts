@@ -1,37 +1,18 @@
-import { BrowserWindow } from 'electron';
+import { BaseWindow, WebContentsView, WebContents, BrowserWindowConstructorOptions } from 'electron';
 
-declare class ContextItem {
-    id: string;
-    title: string;
-    options: ContextItem[] | undefined;
-    func: (() => void) | undefined;
-
-    constructor(title: string, options?: ContextItem[], func?: () => void);
-}
-
-declare class ContextWindow {
-    menu: ContextMenu;
-    window: BrowserWindow;
-    currentInterval: ReturnType<typeof setInterval> | null;
-    ready: boolean;
-    suppressBlur: boolean;
-    active: boolean;
-    animate: boolean;
-
-    constructor(menu: ContextMenu, animate: boolean);
-
-    initiate(): void;
-    hide(): void;
-    setActive(b: boolean): void;
+declare class MenuTemplate {
+    path: string;
+    constructor(path: string);
 }
 
 declare class ContextMenu {
+    template: MenuTemplate;
     windows: ContextWindow[];
     content: ContextItem[];
     _latestOverId: { depth: number; id: string }[];
     _initiated: boolean;
 
-    constructor();
+    constructor(template?: MenuTemplate);
 
     findDepth(target: ContextItem, currentDepth?: number, content?: ContextItem[]): number;
     calcDepth(): number;
@@ -46,4 +27,37 @@ declare class ContextMenu {
     showAsContext(animate: boolean): Promise<void>;
 }
 
-export { ContextItem, ContextMenu, ContextWindow };
+declare class ContextWindow {
+    menu: ContextMenu;
+    window: MenuWindow;
+    view: WebContentsView;
+    currentInterval: ReturnType<typeof setInterval> | null;
+    ready: boolean;
+    suppressBlur: boolean;
+    active: boolean;
+    animate: boolean;
+
+    constructor(menu: ContextMenu, animate: boolean);
+
+    initiate(): void;
+    hide(): void;
+    setActive(active: boolean): void;
+}
+
+declare class MenuWindow extends BaseWindow {
+    readonly view: WebContentsView;
+    readonly webContents: WebContents;
+
+    constructor(options?: BrowserWindowConstructorOptions);
+}
+
+declare class ContextItem {
+    id: string;
+    title: string;
+    options: ContextItem[] | undefined;
+    func: (() => void) | undefined;
+
+    constructor(title: string, options?: ContextItem[], func?: () => void);
+}
+
+export { ContextItem, ContextMenu, ContextWindow, MenuTemplate, MenuWindow };

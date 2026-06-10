@@ -6,7 +6,14 @@ var __require = /* @__PURE__ */ ((x) => typeof require !== "undefined" ? require
 });
 
 // index.js
-import { BrowserWindow, screen, ipcMain } from "electron";
+import {
+  WebContentsView,
+  BaseWindow,
+  WebContents,
+  screen,
+  ipcMain,
+  globalShortcut
+} from "electron";
 import path from "path";
 import { fileURLToPath } from "url";
 var pkgDir;
@@ -25,8 +32,8 @@ if (typeof __require !== "undefined" && __require.resolve) {
 }
 var WIN_WIDTH = 235;
 var WIN_HEIGHT = 205;
-function sendMessage(win, eventName, value) {
-  win.webContents.send("asynchronous-reply", { event: eventName, value });
+function sendMessage(window, eventName, value) {
+  window.webContents.send("asynchronous-reply", { event: eventName, value });
 }
 function waitUntil(condition, interval = 100) {
   return new Promise((resolve) => {
@@ -38,12 +45,19 @@ function waitUntil(condition, interval = 100) {
     }, interval);
   });
 }
+var MenuTemplate = class {
+  constructor(path2) {
+    this.path = path2;
+  }
+};
 var ContextMenu = class {
-  constructor() {
+  constructor(template = null) {
+    this.template = template;
     this.windows = [];
     this.content = [];
     this._latestOverId = [];
     this._initiated = false;
+    this.initTemplate();
     this.initIPC();
   }
   /**
@@ -108,25 +122,29 @@ var ContextMenu = class {
   initWindow(animate) {
     return new ContextWindow(this, animate);
   }
+  initTemplate() {
+    if (this.template == null) {
+      this.template = new MenuTemplate(path.join(pkgDir, `index.html`));
+    }
+  }
   initIPC() {
-    ipcMain.on("ctx-menu", (e, id) => {
+    ipcMain.on("@murphts/on-context-menu-item-click", (e, id) => {
       var _a;
       const item = this.findItem(id);
-      const depth = this.findDepth(item);
       if (item && (item.options == null || item.options.length === 0)) {
         this.blurAll();
         (_a = item == null ? void 0 : item.func) == null ? void 0 : _a.call(item);
       }
     });
-    ipcMain.on("ctx-over", (e, data) => {
+    ipcMain.on("@murphts/on-context-menu-item-over", (e, data) => {
       const item = this.findItem(data.id);
       const depth = this.findDepth(item) + 1;
       if (item.options != null && item.options.length > 0) {
         const rootWindow = this.windows[depth - 1];
         const contextWindow = this.windows[depth];
         if (rootWindow == null || rootWindow.active) {
-          if (!this._latestOverId.some((x) => x.depth == depth && x.id == data.id))
-            sendMessage(contextWindow.window, "ctx-menu", {
+          if (!this._latestOverId.some((x) => x.depth === depth && x.id === data.id))
+            sendMessage(contextWindow.window, "@murphts/on-show-context-menu", {
               options: item.options,
               rect: data.rect
             });
@@ -147,14 +165,14 @@ var ContextMenu = class {
         if (i >= depth)
           x.id = "";
       });
-      const overId = this._latestOverId.find((x) => x.depth == depth);
+      const overId = this._latestOverId.find((x) => x.depth === depth);
       if (overId != null)
         overId.id = data.id;
       else this._latestOverId.push({ depth, id: data.id });
     });
-    ipcMain.on("ctx-leave", (e, id) => {
+    ipcMain.on("@murphts/on-context-menu-item-leave", (e, id) => {
     });
-    ipcMain.on("resolve-ctx", (e, data) => {
+    ipcMain.on("@murphts/on-resolve-context-menu", (e, data) => {
       WIN_WIDTH = Math.round(data.rect.width);
       WIN_HEIGHT = Math.round(data.rect.height);
       let { x, y } = screen.getCursorScreenPoint();
@@ -184,18 +202,19 @@ var ContextMenu = class {
       }, false);
       window.show();
       window.focus();
-      sendMessage(window, "init-ctx-menu", {
+      sendMessage(window, "@murphts/on-load-context-menu", {
         offsetRect: { x: posX, y: posY, width: WIN_WIDTH, height: WIN_HEIGHT }
       });
       if (contextWindow.animate) {
         let opacity = 0;
+        const animationStep = 0.1;
         clearInterval(contextWindow.currentInterval);
         contextWindow.currentInterval = setInterval(() => {
           if (window == null || window.isDestroyed()) {
-            clearInterval(this.currentInterval);
+            clearInterval(contextWindow.currentInterval);
             return;
           }
-          opacity += 0.1;
+          opacity += animationStep;
           window.setOpacity(opacity);
           if (opacity >= 1) clearInterval(contextWindow.currentInterval);
         }, 10);
@@ -230,7 +249,7 @@ var ContextMenu = class {
           }))
         };
       });
-      sendMessage(this.windows[0].window, "ctx-menu", {
+      sendMessage(this.windows[0].window, "@murphts/on-show-context-menu", {
         offsetRect: {},
         options
       });
@@ -245,7 +264,7 @@ var ContextMenu = class {
           }))
         };
       });
-      sendMessage(this.windows[0].window, "ctx-menu", {
+      sendMessage(this.windows[0].window, "@murphts/on-show-context-menu", {
         offsetRect: {},
         options
       });
@@ -253,10 +272,17 @@ var ContextMenu = class {
   }
 };
 var ContextWindow = class {
-  /** @param {ContextMenu} menu */
+  /** @param {ContextMenu} menu
+   * @param {boolean} animate
+   */
   constructor(menu, animate) {
     this.menu = menu;
-    this.window = new BrowserWindow({
+    this.currentInterval = null;
+    this.ready = false;
+    this.suppressBlur = false;
+    this.active = false;
+    this.animate = animate;
+    this.window = new MenuWindow({
       width: WIN_WIDTH,
       height: WIN_HEIGHT,
       frame: false,
@@ -270,34 +296,41 @@ var ContextWindow = class {
       webPreferences: {
         contextIsolation: true,
         nodeIntegration: false,
-        preload: path.join(pkgDir, "preload.js")
+        preload: path.join(pkgDir, "preload.js"),
+        devTools: false
       }
     });
-    this.currentInterval = null;
-    this.ready = false;
-    this.suppressBlur = false;
-    this.active = false;
-    this.animate = animate;
-    this.window.loadFile(path.join(pkgDir, `index.html`));
+    globalShortcut.register("CommandOrControl+Shift+I", () => {
+    });
+    this.window.webContents.loadFile(menu.template.path);
     this.initiate();
   }
   initiate() {
     const window = this.window;
-    window.once("ready-to-show", () => {
+    const webContents = window.webContents;
+    webContents.on("did-finish-load", () => {
+      webContents.executeJavaScript(`
+                const s = document.createElement('script');
+                s.src = 'file://${path.join(pkgDir, "renderer.js").replace(/\\/g, "/")}';
+                document.head.appendChild(s);
+            `);
+    });
+    ipcMain.on("@murphts/on-context-menu-ready", (event) => {
+      if (event.sender !== webContents) return;
       const { bounds } = screen.getPrimaryDisplay();
       window.setOpacity(0);
       window.showInactive();
       window.setSize(WIN_WIDTH, WIN_HEIGHT);
       window.setPosition(bounds.width + 1, 0);
       const contextID = this.menu.windows.length;
-      sendMessage(window, "ctx-id", contextID);
+      sendMessage(this.window, "@murphts/on-resolve-context-id", contextID);
       this.ready = true;
       this.menu.windows.push(this);
     });
     window.on("blur", () => {
       if (!this.suppressBlur) {
-        for (let w of this.menu.windows) {
-          if (w.window.isFocused() && w.window != window) {
+        for (let cw of this.menu.windows) {
+          if (cw.window.isFocused() && cw.window !== window) {
             return;
           }
         }
@@ -311,13 +344,14 @@ var ContextWindow = class {
     const { bounds } = screen.getPrimaryDisplay();
     if (this.animate) {
       let opacity = 1;
+      const animationStep = 0.1;
       clearInterval(this.currentInterval);
       this.currentInterval = setInterval(() => {
         if (window == null || window.isDestroyed()) {
           clearInterval(this.currentInterval);
           return;
         }
-        opacity -= 0.1;
+        opacity -= animationStep;
         window.setOpacity(opacity);
         if (opacity <= 0) {
           clearInterval(this.currentInterval);
@@ -330,9 +364,20 @@ var ContextWindow = class {
       window.setPosition(bounds.width + 1, 0);
     }
   }
-  /** @param {boolean} b */
-  setActive(b) {
-    this.active = b;
+  /** @param {boolean} active */
+  setActive(active) {
+    this.active = active;
+  }
+};
+var MenuWindow = class extends BaseWindow {
+  constructor(options = null) {
+    super(options);
+    this.view = new WebContentsView({
+      webPreferences: options.webPreferences
+    });
+    this.view.setBackgroundColor(options.backgroundColor);
+    this.contentView = this.view;
+    this.webContents = this.view.webContents;
   }
 };
 var ContextItem = class {
@@ -346,5 +391,7 @@ var ContextItem = class {
 export {
   ContextItem,
   ContextMenu,
-  ContextWindow
+  ContextWindow,
+  MenuTemplate,
+  MenuWindow
 };
