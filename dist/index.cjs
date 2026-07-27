@@ -81,8 +81,9 @@ var MenuTemplate = class {
   }
 };
 var ContextMenu = class {
-  constructor(template = null) {
+  constructor(template = null, animationSpeed = 100) {
     this.template = template;
+    this.animationSpeed = animationSpeed;
     this.windows = [];
     this.content = [];
     this._latestOverId = [];
@@ -207,19 +208,27 @@ var ContextMenu = class {
       WIN_HEIGHT = Math.round(data.rect.height);
       let { x, y } = import_electron.screen.getCursorScreenPoint();
       const { bounds } = import_electron.screen.getPrimaryDisplay();
+      WIN_HEIGHT = Math.min(WIN_HEIGHT, bounds.height);
       if (data.offset != null) {
         x = data.offset.x + data.offset.width;
         y = data.offset.y + data.offset.height;
       }
       const outOfBounds = x + WIN_WIDTH - data.rect.extraRight > bounds.width || x - data.rect.extraLeft < 0;
+      console.log(outOfBounds, x, y);
       if (data.offset != null) {
         if (outOfBounds) {
           x = data.offset.x - data.offset.width;
           y = data.offset.y + data.offset.height;
         }
       }
+      console.log("...");
+      console.log(outOfBounds, x, y);
       let posX = x + WIN_WIDTH - data.rect.extraRight > bounds.width ? x - WIN_WIDTH + data.rect.extraRight : x - data.rect.extraLeft < 0 ? -data.rect.extraLeft : x - data.rect.extraLeft;
       let posY = y - WIN_HEIGHT - data.rect.extraBottom < 0 ? y - data.rect.extraTop : y > bounds.height ? bounds.height - WIN_HEIGHT - data.rect.extraBottom : y - WIN_HEIGHT + data.rect.extraBottom;
+      const clamp = (num, min, max) => Math.min(Math.max(num, min), max);
+      posY = clamp(posY, 0, clamp(0, bounds.height - WIN_HEIGHT - data.rect.extraBottom, bounds.height));
+      console.log("...");
+      console.log(posX, posY, WIN_WIDTH, WIN_HEIGHT, bounds.width, bounds.height);
       let contextWindow = this.windows[data.id];
       let window = contextWindow.window;
       contextWindow.setActive(true);
@@ -233,21 +242,25 @@ var ContextMenu = class {
       window.show();
       window.focus();
       sendMessage(window, "@murphts/on-load-context-menu", {
-        offsetRect: { x: posX, y: posY, width: WIN_WIDTH, height: WIN_HEIGHT }
+        offsetRect: { x: posX, y: posY, width: WIN_WIDTH, height: WIN_HEIGHT },
+        sh: bounds.height
       });
       if (contextWindow.animate) {
+        const ANIMATION_FPS = 60;
+        const intervalMs = 1e3 / ANIMATION_FPS;
+        const totalSteps = this.animationSpeed / 1e3 * ANIMATION_FPS;
+        const opacityStep = 1 / totalSteps;
         let opacity = 0;
-        const animationStep = 0.1;
         clearInterval(contextWindow.currentInterval);
         contextWindow.currentInterval = setInterval(() => {
           if (window == null || window.isDestroyed()) {
             clearInterval(contextWindow.currentInterval);
             return;
           }
-          opacity += animationStep;
+          opacity += opacityStep;
           window.setOpacity(opacity);
           if (opacity >= 1) clearInterval(contextWindow.currentInterval);
-        }, 10);
+        }, intervalMs);
       } else {
         window.setOpacity(1);
       }
@@ -322,15 +335,15 @@ var ContextWindow = class {
       skipTaskbar: true,
       transparent: true,
       thickFrame: false,
+      roundedCorners: false,
+      hasShadow: false,
       backgroundColor: "#00000000",
       webPreferences: {
         contextIsolation: true,
         nodeIntegration: false,
         preload: import_node_path.default.join(pkgDir, "preload.js"),
-        devTools: false
+        devTools: true
       }
-    });
-    import_electron.globalShortcut.register("CommandOrControl+Shift+I", () => {
     });
     this.window.webContents.loadFile(menu.template.path);
     this.initiate();
@@ -373,22 +386,25 @@ var ContextWindow = class {
     const window = this.window;
     const { bounds } = import_electron.screen.getPrimaryDisplay();
     if (this.animate) {
+      const ANIMATION_FPS = 60;
+      const intervalMs = 1e3 / ANIMATION_FPS;
+      const totalSteps = this.menu.animationSpeed / 1e3 * ANIMATION_FPS;
+      const opacityStep = 1 / totalSteps;
       let opacity = 1;
-      const animationStep = 0.1;
       clearInterval(this.currentInterval);
       this.currentInterval = setInterval(() => {
         if (window == null || window.isDestroyed()) {
           clearInterval(this.currentInterval);
           return;
         }
-        opacity -= animationStep;
+        opacity -= opacityStep;
         window.setOpacity(opacity);
         if (opacity <= 0) {
           clearInterval(this.currentInterval);
           window.setOpacity(0);
           window.setPosition(bounds.width + 1, 0);
         }
-      }, 10);
+      }, intervalMs);
     } else {
       window.setOpacity(0);
       window.setPosition(bounds.width + 1, 0);

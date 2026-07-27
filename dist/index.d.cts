@@ -7,12 +7,13 @@ declare class MenuTemplate {
 
 declare class ContextMenu {
     template: MenuTemplate;
+    animationSpeed: number;
     windows: ContextWindow[];
     content: ContextItem[];
     _latestOverId: { depth: number; id: string }[];
     _initiated: boolean;
 
-    constructor(template?: MenuTemplate);
+    constructor(template?: MenuTemplate, animationSpeed?: number);
 
     findDepth(target: ContextItem, currentDepth?: number, content?: ContextItem[]): number;
     calcDepth(): number;

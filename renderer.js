@@ -1,6 +1,10 @@
 ﻿window.electronAPI.sendMessage('@murphts/on-context-menu-ready', null);
 
+/** @type {HTMLElement} */
 const container = document.querySelector('.popup-container');
+/** @type {HTMLElement} */
+const content = document.querySelector('.popup-content');
+const html = document.documentElement;
 
 let id = 0;
 let offsetRect = null;
@@ -8,7 +12,10 @@ const options = []
 
 window.electronAPI.onMessage((e, data) => {
     if (e === "@murphts/on-show-context-menu") {
-        container.replaceChildren();
+        container.style.height = "auto";
+        content.style.height = "auto";
+
+        content.replaceChildren();
 
         for (let i = 0; i < data.options.length; i++) {
             const actionOption = data.options[i];
@@ -35,7 +42,7 @@ window.electronAPI.onMessage((e, data) => {
                 window.electronAPI.sendMessage("@murphts/on-context-menu-item-click", actionOption.id);
             }
 
-            container.appendChild(actionElement);
+            content.appendChild(actionElement);
         }
 
         const rect = getFullBounds(container);
@@ -44,6 +51,11 @@ window.electronAPI.onMessage((e, data) => {
             id: id,
             offset: data.rect
         });
+        
+        console.log(rect.height, container.getBoundingClientRect().height);
+        
+        // container.style.height = "100%";
+        // content.style.height = "100%";
     }
     if (e === "@murphts/on-load-context-menu") {
         offsetRect = data.offsetRect;
@@ -69,7 +81,16 @@ window.electronAPI.onMessage((e, data) => {
             item.element.onpointerleave = (e) => {
                 window.electronAPI.sendMessage("@murphts/on-context-menu-item-leave", item.option.id);
             };
-        })
+        });
+
+        console.log("on-load", html.getBoundingClientRect().height , data.sh)
+        
+        if (html.getBoundingClientRect().height < data.sh) return;
+
+        queueMicrotask(() => {
+            container.style.height = "stretch";
+            content.style.height = "stretch";
+        });
     }
     if (e === "@murphts/on-resolve-context-id") {
         id = data;

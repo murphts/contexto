@@ -43,9 +43,6 @@ body {
 
 .popup-container {
     position: fixed;
-    display: flex;
-    flex-direction: column;
-    padding: 6px;
     background: #2f2f2f;
     /*box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19), inset 0 10px 10px -16px #000000;*/
     box-shadow: 0 4px 4px 0 rgba(0, 0, 0, 0.2), inset 0 10px 10px -16px #000000;
@@ -55,6 +52,24 @@ body {
     border-top-width: 2px;
     border-bottom-width: 2px;
     min-width: 200px;
+}
+
+.popup-content {
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    padding: 6px;
+}
+
+.popup-content::-webkit-scrollbar {
+    background-color: rgba(255, 255, 255, 0.177);
+    width: 6px;
+    border-radius: 3px;
+}
+
+.popup-content::-webkit-scrollbar-thumb {
+    background-color:  rgba(255, 255, 255, 0.333);
+    border-radius: 3px;
 }
 
 .popup-container .popup-action {
