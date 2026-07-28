@@ -13,7 +13,7 @@ import {
   ipcMain
 } from "electron";
 import path from "path";
-import { fileURLToPath } from "url";
+import { fileURLToPath, pathToFileURL } from "url";
 var pkgDir;
 if (typeof __require !== "undefined" && __require.resolve) {
   const packageName = "@murphts/contexto/package.json";
@@ -320,11 +320,14 @@ var ContextWindow = class {
     const window = this.window;
     const webContents = window.webContents;
     webContents.on("did-finish-load", () => {
+      const scriptUrl = pathToFileURL(path.join(pkgDir, "renderer.js")).toString();
       webContents.executeJavaScript(`
                 const s = document.createElement('script');
-                s.src = 'file://${path.join(pkgDir, "renderer.js").replace(/\\/g, "/")}';
+                s.src = ${JSON.stringify(scriptUrl)};
                 document.head.appendChild(s);
-            `);
+            `).catch((err) => {
+        console.error("Failed to inject renderer.js:", err);
+      });
     });
     ipcMain.on("@murphts/on-context-menu-ready", (event) => {
       if (event.sender !== webContents) return;

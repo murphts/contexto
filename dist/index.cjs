@@ -352,11 +352,14 @@ var ContextWindow = class {
     const window = this.window;
     const webContents = window.webContents;
     webContents.on("did-finish-load", () => {
+      const scriptUrl = (0, import_node_url.pathToFileURL)(import_node_path.default.join(pkgDir, "renderer.js")).toString();
       webContents.executeJavaScript(`
                 const s = document.createElement('script');
-                s.src = 'file://${import_node_path.default.join(pkgDir, "renderer.js").replace(/\\/g, "/")}';
+                s.src = ${JSON.stringify(scriptUrl)};
                 document.head.appendChild(s);
-            `);
+            `).catch((err) => {
+        console.error("Failed to inject renderer.js:", err);
+      });
     });
     import_electron.ipcMain.on("@murphts/on-context-menu-ready", (event) => {
       if (event.sender !== webContents) return;
